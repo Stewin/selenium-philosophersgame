@@ -9,9 +9,9 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,7 +33,7 @@ public class PhilosophersGame {
     public static void main(String[] args) {
         PhilosophersGame game = new PhilosophersGame();
         System.out.print("Selenium Project - Philosophiespiel\n" +
-                "by Stefan Winterberger\n");
+                "by Stefan Winterberger\n\n");
         game.setUpWebDriver();
         game.getUserInput();
         game.run();
@@ -51,10 +51,11 @@ public class PhilosophersGame {
 
     private void setupProperties() {
         Properties properties = new Properties();
-        String settingsPath = new File("src/main/resources/settings.properties").getAbsolutePath();
+
+        InputStream propInputFile = PhilosophersGame.class.getResourceAsStream("/settings.properties");
 
         try {
-            properties.load(new FileInputStream(settingsPath));
+            properties.load(propInputFile);
         } catch (FileNotFoundException ex) {
             System.out.println(ex.getMessage());
         } catch (IOException ex) {
