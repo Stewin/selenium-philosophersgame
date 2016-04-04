@@ -16,7 +16,7 @@ Windows 10 </br>
 
 To Start the PhilosopherGame Program: </br>
 1. Change the FilePath in the settings.properties - File, to the correct Path of your firefox.exe </br>
-2. Compile the Source Code.
+2. Compile the Source Code. </br>
 3. Open CommandLine (Bash). </br>
 4. Navigate (in the CommandLine) to the Location of the Selenium.jar File. </br>
 5. Type> java -jar Selenium.jar </br>
