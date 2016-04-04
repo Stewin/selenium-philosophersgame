@@ -1,4 +1,4 @@
-# selenium-philosophersgame </br>
+# selenium-philosophersgame </br> V1.0.0
 This Program is Java-Implementation of the PhilosopherGame with the FireFox-Browser. </br>
 Its an Exercise with Selenium. </br>
 
