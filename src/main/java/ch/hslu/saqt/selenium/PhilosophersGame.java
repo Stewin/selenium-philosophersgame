@@ -1,3 +1,5 @@
+package ch.hslu.saqt.selenium;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
@@ -7,6 +9,9 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,10 +23,9 @@ import java.util.stream.Collectors;
  */
 public class PhilosophersGame {
 
-    private final String PATH_TO_FIREFOX_EXE = "P:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe";
     private final String END_PAGE = "Philosophie – Wikipedia";
+    private String pathToFirefoxExe;
     private String startUrl = "https://de.wikipedia.org/wiki/Tee";
-    //    private String startUrl = "https://de.wikipedia.org/wiki/Chinesische_Schrift";
     private int maxClicks = 0;
     private LinkedList<String> visitedPages = new LinkedList<>();
     private WebDriver driver;
@@ -36,10 +40,27 @@ public class PhilosophersGame {
     }
 
     private void setUpWebDriver() {
-        File pathBinary = new File(PATH_TO_FIREFOX_EXE);
-        FirefoxBinary Binary = new FirefoxBinary(pathBinary);
+
+        setupProperties();
+
+        File pathBinary = new File(pathToFirefoxExe);
+        FirefoxBinary binary = new FirefoxBinary(pathBinary);
         FirefoxProfile firefoxPro = new FirefoxProfile();
-        driver = new FirefoxDriver(Binary, firefoxPro);
+        driver = new FirefoxDriver(binary, firefoxPro);
+    }
+
+    private void setupProperties() {
+        Properties properties = new Properties();
+        String settingsPath = new File("src/main/resources/settings.properties").getAbsolutePath();
+
+        try {
+            properties.load(new FileInputStream(settingsPath));
+        } catch (FileNotFoundException ex) {
+            System.out.println(ex.getMessage());
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+        }
+        pathToFirefoxExe = properties.getProperty("pathToFirefoxExe");
     }
 
     private void run() {
@@ -51,9 +72,7 @@ public class PhilosophersGame {
         visitedPages.add(title);
         int clicks = 0;
 
-
-        while (clicks < maxClicks && !title.equals(END_PAGE)) {
-
+        while (clicks <= maxClicks && !title.equals(END_PAGE)) {
             WebElement contentText = null;
             try {
                 contentText = driver.findElement(
@@ -63,7 +82,6 @@ public class PhilosophersGame {
                 getUserInput();
                 run();
             }
-
 
             String paragraphText = filterTextInBrackets(contentText);
 
@@ -86,7 +104,7 @@ public class PhilosophersGame {
 
             clicks++;
         }
-        if (clicks >= maxClicks) {
+        if (clicks > maxClicks) {
             System.out.println("Maximum Number of Clicks reached without reaching the END_PAGE: " + END_PAGE);
         } else {
             System.out.println("Number of Click needed: " + clicks);
