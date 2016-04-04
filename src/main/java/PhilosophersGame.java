@@ -1,4 +1,5 @@
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxBinary;
@@ -6,9 +7,7 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -23,13 +22,16 @@ public class PhilosophersGame {
     private final String END_PAGE = "Philosophie – Wikipedia";
     private String startUrl = "https://de.wikipedia.org/wiki/Tee";
     //    private String startUrl = "https://de.wikipedia.org/wiki/Chinesische_Schrift";
-    private int maxClicks = 20;
+    private int maxClicks = 0;
     private LinkedList<String> visitedPages = new LinkedList<>();
     private WebDriver driver;
 
     public static void main(String[] args) {
         PhilosophersGame game = new PhilosophersGame();
+        System.out.print("Selenium Project - Philosophiespiel\n" +
+                "by Stefan Winterberger\n");
         game.setUpWebDriver();
+        game.getUserInput();
         game.run();
     }
 
@@ -52,8 +54,16 @@ public class PhilosophersGame {
 
         while (clicks < maxClicks && !title.equals(END_PAGE)) {
 
-            WebElement contentText = driver.findElement(
-                    By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
+            WebElement contentText = null;
+            try {
+                contentText = driver.findElement(
+                        By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
+            } catch (NoSuchElementException ex) {
+                System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
+                getUserInput();
+                run();
+            }
+
 
             String paragraphText = filterTextInBrackets(contentText);
 
@@ -90,5 +100,43 @@ public class PhilosophersGame {
 
     private boolean isPageVisited(final String page) {
         return visitedPages.contains(page);
+    }
+
+    private void getUserInput() {
+        System.out.print("To Start the Game enter a valid Wikipedia-Page.\n" +
+                "Example: https://de.wikipedia.org/wiki/Tee\n");
+
+        Scanner scanner = new Scanner(System.in);
+
+        do {
+            System.out.print("https://de.wikipedia.org/wiki/");
+            startUrl = "https://de.wikipedia.org/wiki/" + scanner.nextLine();
+            System.out.println();
+        } while ((!isPageValid(startUrl)));
+
+        System.out.println("Now enter a maximum Value for Clicks till the Game aborts: ");
+
+        while (maxClicks == 0) {
+            try {
+                maxClicks = scanner.nextInt();
+            } catch (InputMismatchException ex) {
+                System.out.println("\nThe entered Value have to be a valid Integer. Please enter again.");
+                scanner.nextLine();
+                maxClicks = 0;
+            }
+        }
+    }
+
+    private boolean isPageValid(final String page) {
+        driver.navigate().to(page);
+        WebElement contentText = null;
+        try {
+            contentText = driver.findElement(
+                    By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
+        } catch (NoSuchElementException ex) {
+            System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
+            return false;
+        }
+        return true;
     }
 }
