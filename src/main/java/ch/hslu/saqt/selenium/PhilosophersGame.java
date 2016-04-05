@@ -71,7 +71,7 @@ public class PhilosophersGame {
 
         String title = driver.getTitle();
 
-        visitedPages.add(title);
+//        visitedPages.add(title);
         int clicks = 0;
 
         while (clicks <= maxClicks && !title.equals(END_PAGE)) {
@@ -89,6 +89,12 @@ public class PhilosophersGame {
 
             List<WebElement> links = contentText.findElements(By.cssSelector("p > a"));
 
+            if (links.size() == 0) {
+                System.out.println("The Page you entered is not explicit.\n" +
+                        "Please enter another Page.\n");
+                getUserInput();
+            }
+
             links.stream()
                     .filter(link -> paragraphText.contains(link.getText()))
                     .findFirst()
@@ -99,7 +105,7 @@ public class PhilosophersGame {
 
             //Loopdetection
             if (isPageVisited(title)) {
-                System.out.println("Page already visited. Loop detected. Abort.");
+                System.out.println("Page already visited. Loop detected. After " + clicks + " Clicks. Abort.");
                 return;
             }
             visitedPages.add(title);
