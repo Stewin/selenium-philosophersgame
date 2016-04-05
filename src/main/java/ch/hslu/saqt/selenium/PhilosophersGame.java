@@ -7,8 +7,6 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,14 +19,15 @@ import java.util.stream.Collectors;
  */
 public class PhilosophersGame {
 
-    private final String END_PAGE = "Philosophie – Wikipedia";
-    private final String SETTINGS_FILENAME = "settings.properties";
+    private final ArrayList<String> startPages = new ArrayList<>();
+    private final ArrayList<Integer> maxNumberOfClickes = new ArrayList<>();
+    private final ArrayList<String> scoreOgPages = new ArrayList<>();
+    private String endPage = "Philosophie – Wikipedia";
+
     private String pathToFirefoxExe;
-    private String startUrl = "https://de.wikipedia.org/wiki/Tee";
-    private int maxClicks = 0;
     private LinkedList<String> visitedPages = new LinkedList<>();
     private WebDriver driver;
-    private String settingsPath = System.getProperty("user.dir");
+    private FileHandler fileHandler = new FileHandler();
 
     public static void main(String[] args) {
 
@@ -36,18 +35,25 @@ public class PhilosophersGame {
 
         System.out.print("\nSelenium Project - Philosophiespiel\n" +
                 "by Stefan Winterberger\n\n");
+
+        game.setUpVariables();
         game.setUpWebDriver();
         game.getUserInput();
         game.run();
     }
 
-    private void setUpWebDriver() {
+    private void setUpVariables() {
+        Properties properties = fileHandler.getProperties();
+        pathToFirefoxExe = properties.getProperty("pathToFirefoxExe");
+        endPage = properties.getProperty("endPage");
+    }
 
-        setupProperties();
+    private void setUpWebDriver() {
 
         File pathBinary = new File(pathToFirefoxExe);
         FirefoxProfile firefoxPro = new FirefoxProfile();
         FirefoxBinary binary;
+
         try {
             binary = new FirefoxBinary(pathBinary);
         } catch (WebDriverException wdex) {
@@ -65,57 +71,94 @@ public class PhilosophersGame {
         driver = new FirefoxDriver(binary, firefoxPro);
     }
 
+    private void getUserInput() {
+        System.out.print("To Start the Game enter a valid Wikipedia-Page or press Enter to read from InputFile.\n" +
+                "Example: https://de.wikipedia.org/wiki/Tee\n");
+
+        Scanner scanner = new Scanner(System.in);
+
+        boolean readFromFile = false;
+        do {
+            readFromFile = false;
+            System.out.println("https://de.wikipedia.org/wiki/");
+            String userInput = scanner.nextLine();
+            if (userInput.equals("")) {
+                readFromFile = true;
+                startPages.addAll(fileHandler.readStartPagesFromFile());
+                maxNumberOfClickes.addAll(fileHandler.readMaxClicksFromFile());
+            } else {
+                //User Input
+                startPages.add(0, "https://de.wikipedia.org/wiki/" + userInput);
+                System.out.println("Now enter a maximum Value for Clicks till the Game aborts: ");
+                maxNumberOfClickes.add(0, 0);
+                while (maxNumberOfClickes.get(0) == 0) {
+                    try {
+                        maxNumberOfClickes.add(0, scanner.nextInt());
+                    } catch (InputMismatchException ex) {
+                        System.out.println("\nThe entered Value have to be a valid Integer. Please enter again.");
+                        scanner.nextLine();
+                        maxNumberOfClickes.add(0);
+                    }
+                }
+            }
+            System.out.println();
+        } while ((!isPageValid(startPages.get(0))) || !readFromFile);
+    }
+
     private void run() {
 
-        driver.navigate().to(startUrl);
+        for (int page = 0; page < startPages.size(); page++) {
+            driver.navigate().to(startPages.get(page));
+            String title = driver.getTitle();
+            int clicks = 0;
 
-        String title = driver.getTitle();
+            while (clicks < maxNumberOfClickes.get(page) && !title.equals(endPage)) {
+                WebElement contentText = null;
+                try {
+                    contentText = driver.findElement(
+                            By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
+                } catch (NoSuchElementException ex) {
+                    System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
 
-//        visitedPages.add(title);
-        int clicks = 0;
+                    getUserInput();
+                    run();
+                    return;
+                }
 
-        while (clicks <= maxClicks && !title.equals(END_PAGE)) {
-            WebElement contentText = null;
-            try {
-                contentText = driver.findElement(
-                        By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
-            } catch (NoSuchElementException ex) {
-                System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
-                getUserInput();
-                run();
+                String paragraphText = filterTextInBrackets(contentText);
+
+                List<WebElement> links = contentText.findElements(By.cssSelector("p > a"));
+                //Listen
+                //Zweiter, Dritter, Vierter... Paragraph
+
+                if (links.size() == 0) {
+                    System.out.println("The Page you entered is not explicit.\n" +
+                            "Please enter another Page.\n");
+                    getUserInput();
+                }
+
+                links.stream()
+                        .filter(link -> paragraphText.contains(link.getText()))
+                        .findFirst()
+                        .ifPresent(WebElement::click);
+
+                title = driver.getTitle();
+                System.out.println(title);
+
+                //Loopdetection
+                if (isPageVisited(title)) {
+                    System.out.println("Page already visited. Loop detected. After " + clicks + " Clicks. Abort.");
+                    return;
+                }
+                visitedPages.add(title);
+
+                clicks++;
             }
-
-            String paragraphText = filterTextInBrackets(contentText);
-
-            List<WebElement> links = contentText.findElements(By.cssSelector("p > a"));
-
-            if (links.size() == 0) {
-                System.out.println("The Page you entered is not explicit.\n" +
-                        "Please enter another Page.\n");
-                getUserInput();
+            if (clicks > maxNumberOfClickes.get(page)) {
+                System.out.println("Maximum Number of Clicks reached without reaching the endPage: " + endPage);
+            } else {
+                System.out.println("Number of Click needed: " + clicks);
             }
-
-            links.stream()
-                    .filter(link -> paragraphText.contains(link.getText()))
-                    .findFirst()
-                    .ifPresent(WebElement::click);
-
-            title = driver.getTitle();
-            System.out.println(title);
-
-            //Loopdetection
-            if (isPageVisited(title)) {
-                System.out.println("Page already visited. Loop detected. After " + clicks + " Clicks. Abort.");
-                return;
-            }
-            visitedPages.add(title);
-
-            clicks++;
-        }
-        if (clicks > maxClicks) {
-            System.out.println("Maximum Number of Clicks reached without reaching the END_PAGE: " + END_PAGE);
-        } else {
-            System.out.println("Number of Click needed: " + clicks);
         }
         driver.quit();
     }
@@ -128,79 +171,15 @@ public class PhilosophersGame {
         return visitedPages.contains(page);
     }
 
-    private void getUserInput() {
-        System.out.print("To Start the Game enter a valid Wikipedia-Page.\n" +
-                "Example: https://de.wikipedia.org/wiki/Tee\n");
-
-        Scanner scanner = new Scanner(System.in);
-
-        do {
-            System.out.print("https://de.wikipedia.org/wiki/");
-            startUrl = "https://de.wikipedia.org/wiki/" + scanner.nextLine();
-            System.out.println();
-        } while ((!isPageValid(startUrl)));
-
-        System.out.println("Now enter a maximum Value for Clicks till the Game aborts: ");
-
-        while (maxClicks == 0) {
-            try {
-                maxClicks = scanner.nextInt();
-            } catch (InputMismatchException ex) {
-                System.out.println("\nThe entered Value have to be a valid Integer. Please enter again.");
-                scanner.nextLine();
-                maxClicks = 0;
-            }
-        }
-    }
-
     private boolean isPageValid(final String page) {
         driver.navigate().to(page);
-        WebElement contentText = null;
         try {
-            contentText = driver.findElement(
+            driver.findElement(
                     By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
         } catch (NoSuchElementException ex) {
             System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
             return false;
         }
         return true;
-    }
-
-    private void setupProperties() {
-        Properties properties = new Properties();
-
-
-        File jarPath = new File(settingsPath + File.separator + SETTINGS_FILENAME);
-
-        if (new File(settingsPath + File.separator + SETTINGS_FILENAME).exists()) {
-            try {
-                properties.load(new FileInputStream(settingsPath + File.separator + SETTINGS_FILENAME));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            createDefaultSettingsFile();
-            try {
-                properties.load(new FileInputStream(settingsPath + File.separator + SETTINGS_FILENAME));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        pathToFirefoxExe = properties.getProperty("pathToFirefoxExe");
-    }
-
-    private void createDefaultSettingsFile() {
-        try {
-            File settingsFile = new File(settingsPath + File.separator + SETTINGS_FILENAME);
-            settingsFile.createNewFile();
-
-            FileWriter writer = new FileWriter(settingsFile);
-            writer.append("pathToFirefoxExe=C:\\\\Program Files (x86)\\\\Mozilla Firefox\\\\firefox.exe");
-            writer.flush();
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 }
