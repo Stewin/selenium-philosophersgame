@@ -1,17 +1,15 @@
 package ch.hslu.saqt.selenium;
 
-import org.openqa.selenium.By;
+import org.openqa.selenium.*;
 import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxBinary;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxProfile;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,19 +17,23 @@ import java.util.stream.Collectors;
  * Main-Class for the Philosophers-Game.
  *
  * @author Stefan Winterberger
- * @version 1.0.0
+ * @version 1.0.1
  */
 public class PhilosophersGame {
 
     private final String END_PAGE = "Philosophie – Wikipedia";
+    private final String SETTINGS_FILENAME = "settings.properties";
     private String pathToFirefoxExe;
     private String startUrl = "https://de.wikipedia.org/wiki/Tee";
     private int maxClicks = 0;
     private LinkedList<String> visitedPages = new LinkedList<>();
     private WebDriver driver;
+    private String settingsPath = System.getProperty("user.dir");
 
     public static void main(String[] args) {
+
         PhilosophersGame game = new PhilosophersGame();
+
         System.out.print("Selenium Project - Philosophiespiel\n" +
                 "by Stefan Winterberger\n\n");
         game.setUpWebDriver();
@@ -44,24 +46,23 @@ public class PhilosophersGame {
         setupProperties();
 
         File pathBinary = new File(pathToFirefoxExe);
-        FirefoxBinary binary = new FirefoxBinary(pathBinary);
         FirefoxProfile firefoxPro = new FirefoxProfile();
-        driver = new FirefoxDriver(binary, firefoxPro);
-    }
-
-    private void setupProperties() {
-        Properties properties = new Properties();
-
-        InputStream propInputFile = PhilosophersGame.class.getResourceAsStream("/settings.properties");
-
+        FirefoxBinary binary;
         try {
-            properties.load(propInputFile);
-        } catch (FileNotFoundException ex) {
-            System.out.println(ex.getMessage());
-        } catch (IOException ex) {
-            System.out.println(ex.getMessage());
+            binary = new FirefoxBinary(pathBinary);
+        } catch (WebDriverException wdex) {
+            System.out.println("It seems that " + pathToFirefoxExe + " isn't your installation path for firefox.exe");
+            System.out.println("Please edit de settings.properties File to a valid Path for firefox.exe and restart the Program.");
+            try {
+                System.out.println("Press a Key to Exit...");
+                System.in.read();
+                System.exit(-1);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            binary = null;
         }
-        pathToFirefoxExe = properties.getProperty("pathToFirefoxExe");
+        driver = new FirefoxDriver(binary, firefoxPro);
     }
 
     private void run() {
@@ -157,5 +158,43 @@ public class PhilosophersGame {
             return false;
         }
         return true;
+    }
+
+    private void setupProperties() {
+        Properties properties = new Properties();
+
+
+        File jarPath = new File(settingsPath + File.separator + SETTINGS_FILENAME);
+
+        if (new File(settingsPath + File.separator + SETTINGS_FILENAME).exists()) {
+            try {
+                properties.load(new FileInputStream(settingsPath + File.separator + SETTINGS_FILENAME));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            createDefaultSettingsFile();
+            try {
+                properties.load(new FileInputStream(settingsPath + File.separator + SETTINGS_FILENAME));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        pathToFirefoxExe = properties.getProperty("pathToFirefoxExe");
+    }
+
+    private void createDefaultSettingsFile() {
+        try {
+            File settingsFile = new File(settingsPath + File.separator + SETTINGS_FILENAME);
+            settingsFile.createNewFile();
+
+            FileWriter writer = new FileWriter(settingsFile);
+            writer.append("pathToFirefoxExe=C:\\\\Program Files (x86)\\\\Mozilla Firefox\\\\firefox.exe");
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
