@@ -34,7 +34,7 @@ public class PhilosophersGame {
 
         PhilosophersGame game = new PhilosophersGame();
 
-        System.out.print("Selenium Project - Philosophiespiel\n" +
+        System.out.print("\nSelenium Project - Philosophiespiel\n" +
                 "by Stefan Winterberger\n\n");
         game.setUpWebDriver();
         game.getUserInput();
