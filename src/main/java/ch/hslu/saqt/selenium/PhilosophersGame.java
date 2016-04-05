@@ -71,7 +71,6 @@ public class PhilosophersGame {
 
         String title = driver.getTitle();
 
-//        visitedPages.add(title);
         int clicks = 0;
 
         while (clicks <= maxClicks && !title.equals(END_PAGE)) {
@@ -81,13 +80,17 @@ public class PhilosophersGame {
                         By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
             } catch (NoSuchElementException ex) {
                 System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
+
                 getUserInput();
                 run();
+                return;
             }
 
             String paragraphText = filterTextInBrackets(contentText);
 
             List<WebElement> links = contentText.findElements(By.cssSelector("p > a"));
+            //Listen
+            //Zweiter, Dritter, Vierter... Paragraph
 
             if (links.size() == 0) {
                 System.out.println("The Page you entered is not explicit.\n" +
@@ -142,6 +145,7 @@ public class PhilosophersGame {
 
         System.out.println("Now enter a maximum Value for Clicks till the Game aborts: ");
 
+        maxClicks = 0;
         while (maxClicks == 0) {
             try {
                 maxClicks = scanner.nextInt();
