@@ -19,15 +19,11 @@ import java.util.stream.Collectors;
  */
 public class PhilosophersGame {
 
-    private final ArrayList<String> startPages = new ArrayList<>();
-    private final ArrayList<Integer> maxNumberOfClickes = new ArrayList<>();
-    private final ArrayList<String> scoreOgPages = new ArrayList<>();
-    private String endPage = "Philosophie – Wikipedia";
-
+    private final FileHandler fileHandler = new FileHandler();
+    private final LinkedList<GameTurn> turns = new LinkedList<>();
+    private final LinkedList<String> visitedPages = new LinkedList<>();
     private String pathToFirefoxExe;
-    private LinkedList<String> visitedPages = new LinkedList<>();
     private WebDriver driver;
-    private FileHandler fileHandler = new FileHandler();
 
     public static void main(String[] args) {
 
@@ -40,12 +36,12 @@ public class PhilosophersGame {
         game.setUpWebDriver();
         game.getUserInput();
         game.run();
+        game.printScores();
     }
 
     private void setUpVariables() {
         Properties properties = fileHandler.getProperties();
         pathToFirefoxExe = properties.getProperty("pathToFirefoxExe");
-        endPage = properties.getProperty("endPage");
     }
 
     private void setUpWebDriver() {
@@ -77,93 +73,89 @@ public class PhilosophersGame {
 
         Scanner scanner = new Scanner(System.in);
 
-        boolean readFromFile = false;
-        do {
-            readFromFile = false;
-            System.out.println("https://de.wikipedia.org/wiki/");
-            String userInput = scanner.nextLine();
-            if (userInput.equals("")) {
-                readFromFile = true;
-                startPages.addAll(fileHandler.readStartPagesFromFile());
-                maxNumberOfClickes.addAll(fileHandler.readMaxClicksFromFile());
-            } else {
-                //User Input
-                startPages.add(0, "https://de.wikipedia.org/wiki/" + userInput);
-                System.out.println("Now enter a maximum Value for Clicks till the Game aborts: ");
-                maxNumberOfClickes.add(0, 0);
-                while (maxNumberOfClickes.get(0) == 0) {
-                    try {
-                        maxNumberOfClickes.add(0, scanner.nextInt());
-                    } catch (InputMismatchException ex) {
-                        System.out.println("\nThe entered Value have to be a valid Integer. Please enter again.");
-                        scanner.nextLine();
-                        maxNumberOfClickes.add(0);
-                    }
+        System.out.println("https://de.wikipedia.org/wiki/");
+        String userInput = scanner.nextLine();
+        if (userInput.equals("")) {
+            turns.addAll(fileHandler.readGameturnsFromFile());
+        } else {
+            //User Input
+            String page = "https://de.wikipedia.org/wiki/" + userInput;
+            System.out.println("Now enter a maximum Value for Clicks till the Game aborts: ");
+            int maxNumberOfClicks = 0;
+
+            while (maxNumberOfClicks == 0) {
+                try {
+                    maxNumberOfClicks = scanner.nextInt();
+                } catch (InputMismatchException ex) {
+                    System.out.println("\nThe entered Value have to be a valid Integer. Please enter again.");
+                    scanner.nextLine();
+                    maxNumberOfClicks = 0;
                 }
             }
-            System.out.println();
-        } while ((!isPageValid(startPages.get(0))) || !readFromFile);
+            turns.add(new GameTurn(page, maxNumberOfClicks));
+        }
+        System.out.println();
     }
 
     private void run() {
 
-        for (int page = 0; page < startPages.size(); page++) {
-            driver.navigate().to(startPages.get(page));
+        for (GameTurn turn : turns) {
+            driver.navigate().to(turn.getStartPageUrl());
             String title = driver.getTitle();
-            int clicks = 0;
+            visitedPages.clear();
 
-            while (clicks < maxNumberOfClickes.get(page) && !title.equals(endPage)) {
-                WebElement contentText = null;
+            while (turn.getClicksNeeded() < turn.getMaxClicks() && !title.equals(turn.getEndPageTitle())) {
                 try {
-                    contentText = driver.findElement(
-                            By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
-                } catch (NoSuchElementException ex) {
-                    System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
-
-                    getUserInput();
-                    run();
-                    return;
+                    clickFirstValidLink();
+                } catch (NullPointerException npe) {
+                    turn.setErrorDetected();
+                    break;
                 }
-
-                String paragraphText = filterTextInBrackets(contentText);
-
-                List<WebElement> links = contentText.findElements(By.cssSelector("p > a"));
-                //Listen
-                //Zweiter, Dritter, Vierter... Paragraph
-
-                if (links.size() == 0) {
-                    System.out.println("The Page you entered is not explicit.\n" +
-                            "Please enter another Page.\n");
-                    getUserInput();
-                }
-
-                links.stream()
-                        .filter(link -> paragraphText.contains(link.getText()))
-                        .findFirst()
-                        .ifPresent(WebElement::click);
 
                 title = driver.getTitle();
-                System.out.println(title);
-
-                //Loopdetection
-                if (isPageVisited(title)) {
-                    System.out.println("Page already visited. Loop detected. After " + clicks + " Clicks. Abort.");
-                    return;
+                if (isLoopDetected()) {
+                    turn.setLoopDetected();
+                    break;
                 }
-                visitedPages.add(title);
-
-                clicks++;
-            }
-            if (clicks > maxNumberOfClickes.get(page)) {
-                System.out.println("Maximum Number of Clicks reached without reaching the endPage: " + endPage);
-            } else {
-                System.out.println("Number of Click needed: " + clicks);
+                turn.increaseClicksNeeded();
             }
         }
         driver.quit();
     }
 
-    private String filterTextInBrackets(WebElement element) {
+    private void clickFirstValidLink() {
+
+        WebElement contentText = null;
+        try {
+            contentText = driver.findElement(
+                    By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p[1]"));
+        } catch (NoSuchElementException ex) {
+            System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
+        }
+
+        List<WebElement> webLinks = contentText.findElements(By.cssSelector("p > a"));
+        if (webLinks.size() == 0) {
+            webLinks = contentText.findElements(By.cssSelector("li > a"));
+        }
+
+        String paragraphText = filterTextInBrackets(contentText);
+
+        webLinks.stream()
+                .filter(link -> paragraphText.contains(link.getText()))
+                .findFirst()
+                .ifPresent(WebElement::click);
+    }
+
+    private boolean isLoopDetected() {
+        String title = driver.getTitle();
+        if (isPageVisited(title)) {
+            return true;
+        }
+        visitedPages.add(title);
+        return false;
+    }
+
+    private String filterTextInBrackets(final WebElement element) {
         return Arrays.stream(element.getText().split(" \\(((?!\\)).)*\\) ")).collect(Collectors.joining(" "));
     }
 
@@ -171,15 +163,14 @@ public class PhilosophersGame {
         return visitedPages.contains(page);
     }
 
-    private boolean isPageValid(final String page) {
-        driver.navigate().to(page);
-        try {
-            driver.findElement(
-                    By.xpath("/html/body/div[@id='content']/div[@id='bodyContent']/div[@id='mw-content-text']/p"));
-        } catch (NoSuchElementException ex) {
-            System.out.println("The Entered Page seems not to Exist. Enter a Valid Wiki-Page to start.");
-            return false;
+    private void printScores() {
+
+        StringBuilder stringBuilder = new StringBuilder();
+
+        for (GameTurn turn : turns) {
+            stringBuilder.append(turn.toString()).append(System.lineSeparator());
         }
-        return true;
+        System.out.println(stringBuilder.toString());
+        fileHandler.writeToDefaultOutputFile(stringBuilder.toString());
     }
 }

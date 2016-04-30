@@ -1,4 +1,4 @@
-# selenium-philosophersgame </br> V1.0.0
+# selenium-philosophersgame </br> V2.0.0
 This Program is Java-Implementation of the PhilosopherGame with the FireFox-Browser. </br>
 Its an Exercise with Selenium. </br>
 
@@ -16,8 +16,8 @@ Windows 10 </br>
 
 To Start the PhilosopherGame Program: </br>
 1. Change the FilePath in the settings.properties - File, to the correct Path of your firefox.exe </br>
-2. Compile the Source Code. </br>
-3. Open CommandLine (Bash). </br>
-4. Navigate (in the CommandLine) to the Location of the Selenium.jar File. </br>
-5. Type> java -jar Selenium.jar </br>
-6. Follow the Instructions of the Program. </br>
+2. Open CommandLine (Bash). </br>
+3. Navigate (in the CommandLine) to the Location of the Selenium.jar File. </br>
+4. Type> java -jar Selenium.jar </br>
+5. Follow the Instructions of the Program. </br>
+6. Either you Enter the Page you wish in the Command Line directly, or you use the "Wikipages Input.csv"-File

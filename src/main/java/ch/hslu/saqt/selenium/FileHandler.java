@@ -2,6 +2,7 @@ package ch.hslu.saqt.selenium;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Properties;
 
 /**
@@ -10,12 +11,11 @@ import java.util.Properties;
  * @author Stefan Winterberger
  * @version 1.0.0
  */
-public class FileHandler {
+public final class FileHandler {
 
     private final String settingsFilename = "settings.properties";
     private final String filePath = System.getProperty("user.dir");
     private final String INPUT_FILENAME = "Wikipages Input.csv";
-    private final String OUTPUT_FILENAME = "Results.csv";
 
     public Properties getProperties() {
         Properties properties = new Properties();
@@ -37,58 +37,78 @@ public class FileHandler {
         return properties;
     }
 
-    public ArrayList<String> readStartPagesFromFile() {
-
-        ArrayList<String> pages = new ArrayList<>();
-
-        try {
-            FileReader fr = new FileReader(INPUT_FILENAME);
-            BufferedReader in = new BufferedReader(fr);
+    public LinkedList<GameTurn> readGameturnsFromFile() {
+        final LinkedList<GameTurn> turns = new LinkedList<>();
+        try (FileReader fr = new FileReader(INPUT_FILENAME);
+             BufferedReader in = new BufferedReader(fr)) {
             String line = in.readLine();
             while (line != null) {
-                String page = (line.split(","))[0];
-                pages.add("https://de.wikipedia.org/wiki/" + page);
+                ArrayList<String> pages = readEvenValues(line);
+                ArrayList<Integer> maxClicks = readOddValues(line);
+                for (int i = 0; i < pages.size(); i++) {
+                    turns.add(new GameTurn(pages.get(i), maxClicks.get(i)));
+                }
                 line = in.readLine();
             }
-
         } catch (FileNotFoundException e1) {
             createDefaultInputFile();
-            e1.printStackTrace();
+            System.out.println("File " + INPUT_FILENAME + " wasn't found: ");
         } catch (IOException e1) {
-            e1.printStackTrace();
+            System.out.println("IO Exception while read File. The Message is: " + e1.getMessage());
+        }
+        return turns;
+    }
+
+    public void writeToDefaultOutputFile(final String stringToWrite) {
+        String OUTPUT_FILENAME = "Results.csv";
+        try (FileWriter fileWriter = new FileWriter(OUTPUT_FILENAME);
+             BufferedWriter out = new BufferedWriter(fileWriter)) {
+            out.write(stringToWrite);
+            out.flush();
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private ArrayList<String> readEvenValues(final String line) {
+        ArrayList<String> pages = new ArrayList<>();
+
+        String[] tokens = line.split(",");
+
+        for (int i = 0; i < tokens.length; i++) {
+            if (i % 2 == 0) {
+                String page = tokens[i];
+                pages.add("https://de.wikipedia.org/wiki/" + page.trim());
+            }
         }
         return pages;
     }
 
-    public ArrayList<Integer> readMaxClicksFromFile() {
-        ArrayList<Integer> clicks = new ArrayList<>();
+    private ArrayList<Integer> readOddValues(final String line) {
+        ArrayList<Integer> maxClicks = new ArrayList<>();
 
-        try {
-            FileReader fr = new FileReader(INPUT_FILENAME);
-            BufferedReader in = new BufferedReader(fr);
-            String line = in.readLine();
-            while (line != null) {
-                int maxClicks = Integer.parseInt((line.split(","))[1].trim());
-                clicks.add(maxClicks);
-                line = in.readLine();
+        String[] tokens = line.split(",");
+
+        for (int i = 0; i < tokens.length; i++) {
+            if (i % 2 != 0) {
+                int maxClick = 0;
+                try {
+                    maxClick = Integer.parseInt(tokens[i].trim());
+                } catch (NumberFormatException nfex) {
+                    System.out.println("Invalid Value for MaxClicks");
+                }
+                maxClicks.add(maxClick);
             }
-        } catch (FileNotFoundException e1) {
-            createDefaultInputFile();
-            e1.printStackTrace();
-        } catch (IOException e1) {
-            e1.printStackTrace();
         }
-        return clicks;
+        return maxClicks;
     }
 
     private void createDefaultSettingsFile() {
         try {
             File settingsFile = new File(filePath + File.separator + settingsFilename);
             settingsFile.createNewFile();
-
             FileWriter writer = new FileWriter(settingsFile);
             writer.append("pathToFirefoxExe=C:\\\\Program Files (x86)\\\\Mozilla Firefox\\\\firefox.exe\n");
-            writer.append("endPage=Philosophie – Wikipedia");
             writer.flush();
             writer.close();
         } catch (IOException e) {
@@ -96,8 +116,15 @@ public class FileHandler {
         }
     }
 
-
     private void createDefaultInputFile() {
-
+        File inputFile = new File(filePath + File.separator + INPUT_FILENAME);
+        try (FileWriter fileWriter = new FileWriter(inputFile);
+             BufferedWriter out = new BufferedWriter(fileWriter)) {
+            inputFile.createNewFile();
+            out.write("Tee, 10, Hanf, 4, Kuh, 20,\nSchule, 15,\nSteam, 55,");
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
